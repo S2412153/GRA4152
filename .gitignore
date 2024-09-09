@@ -1,0 +1,10 @@
+# Exclude Python compiled files
+*.pyc
+__pycache__/
+
+# Exclude large or sensitive files
+*.log
+*.env
+
+# Exclude foo.py file
+foo.py
