@@ -1,4 +1,5 @@
 # Candidate Number: 1103298
+# Github: https://github.com/S2412153/GRA4152/blob/main/testing_gml.py
 
 import numpy as np
 import pandas as pd
@@ -39,6 +40,20 @@ class DataLoader(ABC):
         if self._y is None:
             raise ValueError("Data not loaded. Load data before accessing y.")
         return self._y
+    
+    # Transpose property for X
+    @property
+    def x_transpose(self):
+        if self._X is None:
+            raise ValueError("Data not loaded. Load data before accessing X.")
+        
+        # Ensure the transpose matches statsmodels' expectations: [N, p+1]
+        X_t = self._X.T
+        
+        # Log a warning instead of asserting
+        if X_t.shape[0] <= X_t.shape[1]:
+            print(f"Warning: Transposed shape {X_t.shape} may not match expectations [N, p+1].")
+        return X_t
 
     # Method to check if X and y have matching dimensions
     def check_shape(self):
@@ -83,6 +98,7 @@ class StatsModelsLoader(DataLoader):
             self._X = dataset.drop(columns=[self.response_var])
             if self._X.empty:
                 raise ValueError("No predictors specified, and dropping the response variable resulted in an empty dataset.")
+            print("Using all available predictors.")
 
         print(f"Loaded dataset: {self.dataset_name}")
         print(f"Predictors: {self._X.columns.tolist()}")
@@ -139,6 +155,7 @@ class GLM(ABC):
         if initial_guess is None:
             initial_guess = np.zeros(self.X.shape[1])  # Default initial guess is zero
         result = minimize(lambda beta: self.neg_log_likelihood(beta, self.X, self.y), initial_guess)
+        
         self.beta = result.x  # Store the optimized coefficients
         return self.beta
 
@@ -180,7 +197,7 @@ class BernoulliGLM(GLM):
     def neg_log_likelihood(self, beta, X, y):
         eta = np.dot(X, beta)
         mu = self.link_function(eta)
-        return -np.sum(y * np.log(mu + 1e-4) + (1 - y) * np.log(1 - mu + 1e-4))
+        return -np.sum(y * np.log(mu + 1e-4) + (1 - y) * np.log(1 - mu + 1e-4)) + self.alpha * np.sum(beta**2)
 
 # Subclass for Poisson GLM
 class PoissonGLM(GLM):
