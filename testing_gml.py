@@ -155,10 +155,12 @@ class GLM(ABC):
     # Fit the model by minimizing the negative log-likelihood (equivalent to MLE)
     def fit(self, initial_guess=None):
         if initial_guess is None:
-            initial_guess = np.zeros(self.X.shape[1])  # Default initial guess is zero
+            initial_guess = np.zeros(self.X.shape[1])  # Default initial guess is zero, creates an array of zeros with a length equal to the number of predictors (columns of X)
+        # lambda creates an anonymous (inline) function that takes a single argument, beta, and passes it along with self.X and self.y to self.neg_log_likelihood
+        # this way we freeze the X, y to self.X, self.y and only use beta as an argument 
         result = minimize(lambda beta: self.neg_log_likelihood(beta, self.X, self.y), initial_guess)
         
-        self.beta = result.x  # Store the optimized coefficients
+        self.beta = result.x  # Store the optimized coefficients (betas)
         return self.beta
 
     # Predict response values for new data
