@@ -74,6 +74,7 @@ class StatsModelsLoader(DataLoader):
 
     def load_data(self):
         # fetch dataset based on the specified name using statsmodel library
+        # we store the data into pandas datasets for easier variable manipulation
         if self.dataset_name.lower() == "duncan":
             dataset = sm.datasets.get_rdataset("Duncan", "carData").data
         elif self.dataset_name.lower() == "spector":
@@ -96,6 +97,7 @@ class StatsModelsLoader(DataLoader):
         # Default to all columns except response variable
         else:
             self._X = dataset.drop(columns=[self.response_var])
+            # if predictor not defined, use all columns except response variable as self._X
             if self._X.empty:
                 raise ValueError("No predictors specified, and dropping the response variable resulted in an empty dataset.")
             print("Using all available predictors.")
@@ -189,7 +191,7 @@ class NormalGLM(GLM):
 class BernoulliGLM(GLM):
     def __init__(self, X, y, alpha=0.0):
         super().__init__(X, y)
-        self.alpha = alpha  # Regularization term
+        self.alpha = alpha  # Regularization term to avoid overfitting
 
     def link_function(self, eta):
         return 1 / (1 + np.exp(-eta))  # Logistic link function
@@ -205,6 +207,9 @@ class PoissonGLM(GLM):
         return np.exp(eta)  # Exponential link function
 
     def neg_log_likelihood(self, beta, X, y):
+        # Return boolean array if y is non-negative, check all elements in the array are True. Otherwise, the condition fails.
+        # Round each element to the nearest integer. Check and verify if all elements are integers.
+        # This is due to non-negative and fractional values are not valid for the Poisson distribution.
         if not np.all(y >= 0) or not np.all(np.floor(y) == y):
             raise ValueError("y must contain only non-negative integers for Poisson GLM.")
         mu = self.link_function(np.dot(X, beta))
@@ -245,7 +250,7 @@ def run_test(loader, model_types, add_intercept=False, show_summary=False):
         # Print results
         print_output(
             dataset_name=loader.dataset_name,
-            predictors=X.columns.tolist(),
+            predictors=X.columns.tolist(), # pandas.Index object convert to list for better readability
             response_var=loader.response_var,
             add_intercept=add_intercept,
             model_type=model_type,
@@ -259,16 +264,7 @@ def run_test(loader, model_types, add_intercept=False, show_summary=False):
             print("\nStatsmodels Summary:")
             print("---------------------")
             print(sm_results.summary())
-
-        # Save results for further analysis
-        results[model_type] = {
-            "custom_betas": beta_custom,
-            "statsmodels_betas": beta_sm,
-            "predictions_custom": predictions_custom,
-            "predictions_sm": predictions_sm,
-            "summary": sm_results.summary() if show_summary else None,
-        }
-
+            
     return results
 
 # Helper function to format and display results
@@ -297,7 +293,7 @@ def print_output(dataset_name, predictors, response_var, add_intercept, model_ty
     print(f"Custom Model Predictions:    {[round(pred, 4) for pred in predictions_custom[:10]]}")
     print(f"Statsmodels Predictions:     {[round(pred, 4) for pred in predictions_sm[:10].tolist()]}")
 
-# Entry point for command-line execution using argparse
+# Command-line execution using argparse
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run GLM tests and compare models.")
     parser.add_argument('--model', type=str, choices=['normal', 'bernoulli', 'poisson'], nargs='+', required=True, help="Select GLM model(s) to test.")
